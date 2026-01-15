@@ -1,0 +1,10 @@
+backend/node_modules
+/backend/.env
+/spark_app/.venv
+/spark_app/.qodo
+.qodo
+/spark_app/notebooks/model.ipynb
+/spark_app/notebooks/test.ipynb
+/spark_app/notebooks/ViSoBERT.ipynb
+/spark_app/.env
+/spark_app/readme.md
