@@ -60,16 +60,15 @@ services:
     depends_on:
       - kafka-1
     entrypoint: ["/bin/bash", "-c"]
+    networks:
+      - comment-toxic
     command: |
       "
       echo 'Waiting for Kafka...'
       until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:9092 --list; do
         sleep 3
       done
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:9092 --create --if-not-exists \
-        --topic comment \
-        --partitions 1 \
-        --replication-factor 1
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:9092 --create --if-not-exists --topic comment --partitions 1 --replication-factor 1
       echo 'Topic created successfully!'
       "
   # =========================
