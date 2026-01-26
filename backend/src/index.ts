@@ -8,9 +8,31 @@ import router from "./router/index";
 import { AppError } from "./error/AppError";
 import { ResponseDTO } from "./model/response";
 import { initKafka } from "./service/kafka-producer";
+import { NODE_ENV, PORT } from "./utils/config";
+import { initRedis } from "./service/redis-service";
+import { initMongo } from "./service/mongo-service";
+import http from "http";
+import { Server } from "socket.io";
+import {
+  initSocket,
+  initMongoListener,
+} from "./service/socket-service";
+import { initSSERealtimeListener } from "./service/sse-service";
 const app = express();
+
+// const httpServer = http.createServer(app);
+// const io = new Server(httpServer, {
+//   cors: {
+//     origin: "*", // Adjust as needed for security
+//     methods: ["GET", "POST"],
+//   },
+// });
+
 // init middleware
-app.use(helmet());
+// Configure helmet to allow SSE connections
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP to allow SSE
+}));
 app.use(morgan("dev"));
 app.use(compression());
 // init body parser
@@ -19,8 +41,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // init cors
 app.use(cors());
-
-dotenv.config();
 
 // init route
 app.use("/api", router);
@@ -32,12 +52,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // handling general errors
-app.use((error: any, req: Request, res: Response) => {
+app.use((error: any, req: Request, res: Response, next: NextFunction) => {
   const statusCode = error.statusCode || 500;
   ResponseDTO.error(
     error.message || "Internal Server Error",
     error.errors || null,
-    statusCode
+    statusCode,
   );
   res.status(statusCode).json({
     status: "error",
@@ -47,19 +67,38 @@ app.use((error: any, req: Request, res: Response) => {
   });
 });
 
+initRedis()
+  .then(() => {
+    console.log("Redis Initialized");
+  })
+  .catch((error) => {
+    console.error(error);
+  });
+
 initKafka()
   .then(() => {
-    console.log("Kafka Initialized, starting server...");
+    console.log("Kafka Initialized");
   })
   .catch((error) => {
     console.error("Failed to initialize Kafka:", error);
     process.exit(1);
   });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log(
-    `Server is running on port ${process.env.PORT || 3000} in ${
-      process.env.NODE_ENV
-    } mode.`
-  );
+initMongo()
+  .then(() => {
+    console.log("MongoDB Initialized");
+  })
+  .catch((error) => {
+    console.error("Failed to initialize MongoDB:", error);
+    process.exit(1);
+  });
+
+// Initialize Socket.IO and Mongo Listeners
+// initSocket(io);
+// initMongoListener(io);
+initSSERealtimeListener();
+
+const serverPort = PORT || 3000;
+app.listen(serverPort, () => {
+  console.log(`Server is running on port ${serverPort} in ${NODE_ENV} mode.`);
 });

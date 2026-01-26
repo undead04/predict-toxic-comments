@@ -1,8 +1,10 @@
-import { Kafka, Partitioners, Producer } from "kafkajs";
+import { Kafka, Partitioners } from "kafkajs";
+import { KAFKA_BOOTSTRAP_SERVER, KAFKA_CLIENT_ID } from "../utils/config";
+import { KafkaPayload } from "../types/YoutubeComment";
 
 const kafka = new Kafka({
-  clientId: "youtube-crawler",
-  brokers: ["localhost:9094"], // Đảm bảo port này khớp với EXTERNAL trong Docker
+  clientId: KAFKA_CLIENT_ID,
+  brokers: [KAFKA_BOOTSTRAP_SERVER], // Đảm bảo port này khớp với EXTERNAL trong Docker
   retry: {
     initialRetryTime: 300,
     retries: 10,
@@ -29,14 +31,12 @@ export const initKafka = async () => {
   }
 };
 
-export const sendToKafka = async (topic: string, message: any) => {
-  try {
-    // Không cần await producer.connect() ở đây nữa vì đã init ở index.ts
-    await producer.send({
-      topic,
-      messages: [{ value: JSON.stringify(message) }],
-    });
-  } catch (error) {
-    console.error("❌ KafkaJS Send Error:", error);
-  }
-};
+export async function sendToKafka(topic: string, messages: KafkaPayload[]) {
+  await producer.send({
+    topic,
+    messages: messages.map((message) => ({
+      key: message.videoId,
+      value: JSON.stringify(message),
+    })),
+  });
+}
