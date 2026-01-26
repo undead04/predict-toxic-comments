@@ -19,9 +19,12 @@ from pyspark.sql.pandas.functions import pandas_udf
 from utils.logger import get_logger
 import os
 import threading
-from utils.config import MODEL_PATH
+from scripts.models.ModelLoader import ModelLoader
+from utils.config import MODEL_PATH, BUCKET
 
 logger = get_logger("TransformComment")
+# Tốt nhất là lấy từ Environment Variable, mặc định là /tmp
+
 
 _TARGET_NAMES = ["toxic", "severe_toxic", "threat", "insult", "identity_hate"]
 # ===== Global singleton (per Python worker) =====
@@ -57,8 +60,8 @@ def get_model_resources():
                 model = torch.quantization.quantize_dynamic(
                     model, {torch.nn.Linear}, dtype=torch.qint8
                 )
-                state_dict = torch.load(MODEL_PATH, map_location=_device)
-                model.load_state_dict(state_dict)
+                loader = ModelLoader(bucket=BUCKET, device=_device)
+                model.load_state_dict(loader.load(MODEL_PATH))
 
             except Exception as e:
                 logger.exception("❌ Failed to load model weights")

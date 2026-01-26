@@ -8,3 +8,4 @@ transformers
 protobuf
 sentencepiece
 pymongo
+boto3
