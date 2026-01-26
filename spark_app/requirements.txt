@@ -2,7 +2,9 @@ dotenv
 pyspark == 3.5.7
 pandas
 pyarrow
-pyvi
-Gensim
-torch 
+# Bản torch rút gọn chỉ chạy CPU
+torch --index-url https://download.pytorch.org/whl/cpu
 transformers
+protobuf
+sentencepiece
+pymongo

@@ -1,8 +1,18 @@
-# Lấy logger
-log4jLogger = spark._jvm.org.apache.log4j
-logger = log4jLogger.LogManager.getLogger(__name__)
+import logging
+import sys
 
-# Trong quá trình xử lý
-logger.info("Kafka pipeline started successfully")
-if data_loss_detected:
-    logger.error("Critical: Data loss detected in offset range...")
+
+def get_logger(name: str):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    return logger
