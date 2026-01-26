@@ -19,6 +19,7 @@
     "googleapis": "^170.0.0",
     "helmet": "^8.1.0",
     "kafkajs": "^2.2.4",
+    "mongoose": "^9.1.5",
     "morgan": "^1.10.1"
   },
   "devDependencies": {

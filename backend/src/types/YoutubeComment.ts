@@ -112,7 +112,7 @@ export interface IYoutubeComment {
 }
 export interface KafkaPayload {
   type: MessageType;
-  id: string; // ID của comment (hoặc ID bị xóa)
+  commentId: string; // ID của comment (hoặc ID bị xóa)
   videoId: string;
   data: IYoutubeComment | { timestamp: string }; // Dữ liệu comment hoặc ID bị xóa
 }

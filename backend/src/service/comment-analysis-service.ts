@@ -1,4 +1,6 @@
-import { CommentModel, ILiveCommentAnalysis } from "../model/LiveCommentAnalysis";
+import { CommentModel } from "../model/LiveCommentAnalysis";
+import { ILiveCommentAnalysis } from "../model/LiveCommentAnalysis";
+
 
 /**
  * Dịch vụ xử lý phân tích bình luận trực tiếp.

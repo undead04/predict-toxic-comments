@@ -1,5 +1,6 @@
-import { ToxicUserModel } from "../model/ToxicUserMetric";
+
 import { PipelineStage } from 'mongoose';
+import { ToxicUserModel } from '../model/ToxicUserMetric';
 /**
  * Interface cho thông tin người dùng trong leaderboard.
  */
