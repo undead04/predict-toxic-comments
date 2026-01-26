@@ -3,8 +3,9 @@ backend/node_modules
 /spark_app/.venv
 /spark_app/.qodo
 .qodo
-/spark_app/notebooks/model.ipynb
-/spark_app/notebooks/test.ipynb
-/spark_app/notebooks/ViSoBERT.ipynb
+/spark_app/notebooks/*
 /spark_app/.env
 /spark_app/readme.md
+.history
+/frontend/.next
+/frontend/node_modules
