@@ -21,7 +21,7 @@ export const getCommentAnalysisController = async (
         const comments = await getCommentsByVideoId(videoId);
 
         res.status(200).json(
-            ResponseDTO.withData(comments, "Fetch comment analysis successfully", 200)
+            ResponseDTO.successData(comments, "Fetch comment analysis successfully", 200)
         );
     } catch (error) {
         next(error);

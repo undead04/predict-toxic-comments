@@ -107,12 +107,10 @@ export interface IYoutubeComment {
   authorId: string;
   authorImage: string;
   authorName: string;
-  timestamp: string;
-  isModerator: boolean;
+  publishedAt: Date;
 }
-export interface KafkaPayload {
+export interface KafkaPayload extends IYoutubeComment {
   type: MessageType;
   commentId: string; // ID của comment (hoặc ID bị xóa)
   videoId: string;
-  data: IYoutubeComment | { timestamp: string }; // Dữ liệu comment hoặc ID bị xóa
 }

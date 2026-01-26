@@ -5,7 +5,7 @@ backend/node_modules
 .qodo
 /spark_app/notebooks/*
 /spark_app/.env
-/spark_app/readme.md
 .history
 /frontend/.next
-/frontend/node_modules
+/frontend/node_modules/
+.env

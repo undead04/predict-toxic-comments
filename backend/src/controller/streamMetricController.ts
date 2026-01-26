@@ -21,7 +21,7 @@ export const getStreamMetricsController = async (
         const metrics = await getMetricsByVideoId(videoId);
 
         res.status(200).json(
-            ResponseDTO.withData(metrics, "Fetch stream metrics successfully", 200)
+            ResponseDTO.successData(metrics, "Fetch stream metrics successfully", 200)
         );
     } catch (error) {
         next(error);

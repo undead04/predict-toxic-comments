@@ -12,22 +12,23 @@ from pyspark.sql.functions import (
     greatest,
     lit,
     coalesce,
-    abs as spark_abs
+    abs as spark_abs,
 )
 from pyspark.sql.types import StructType, FloatType, StructField
 from pyspark.sql.pandas.functions import pandas_udf
 from utils.logger import get_logger
 import os
 import threading
+from utils.config import MODEL_PATH
 
 logger = get_logger("TransformComment")
 
-_TARGET_NAMES = ['toxic', 'severe_toxic', 'threat', 'insult', 'identity_hate']
+_TARGET_NAMES = ["toxic", "severe_toxic", "threat", "insult", "identity_hate"]
 # ===== Global singleton (per Python worker) =====
 _model = None
 _tokenizer = None
 _device = None
-_lock = threading.Lock()   # phòng trường hợp multi-thread trong 1 worker
+_lock = threading.Lock()  # phòng trường hợp multi-thread trong 1 worker
 
 
 def get_model_resources():
@@ -47,25 +48,18 @@ def get_model_resources():
             logger.info("🔹 Initializing model & tokenizer (singleton per worker)")
 
             # -------- Device --------
-            _device = torch.device(
-                "cuda" if torch.cuda.is_available() else "cpu"
-            )
+            _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
             # -------- Model --------
             model = ToxicClassifier()
 
             try:
                 model = torch.quantization.quantize_dynamic(
-                    model,
-                    {torch.nn.Linear},
-                    dtype=torch.qint8
+                    model, {torch.nn.Linear}, dtype=torch.qint8
                 )
-                state_dict = torch.load(
-                    "/opt/model/visobert_toxic.pt",
-                    map_location=_device
-                )
+                state_dict = torch.load(MODEL_PATH, map_location=_device)
                 model.load_state_dict(state_dict)
-                
+
             except Exception as e:
                 logger.exception("❌ Failed to load model weights")
                 raise RuntimeError(f"Model load failed: {e}")
@@ -85,12 +79,10 @@ def get_model_resources():
             _tokenizer = tokenizer
 
             logger.info(
-                f"✅ Model loaded successfully on {_device} | "
-                f"PID={os.getpid()}"
+                f"✅ Model loaded successfully on {_device} | PID={os.getpid()}"
             )
 
     return _model, _tokenizer, _device
-
 
 
 def get_top_label(df, struct_col, labels):
@@ -105,32 +97,33 @@ def get_top_label(df, struct_col, labels):
     )
 
     return (
-        df
-        .withColumn("toxic_score", max_val)
+        df.withColumn("toxic_score", max_val)
         .withColumn("toxic_category", label_selector)
         .withColumn(
             "toxic_label",
-            when(col("toxic_score") >= 0.7, "Toxic").otherwise("Not Toxic")
+            when(col("toxic_score") >= 0.7, "Toxic").otherwise("Not Toxic"),
         )
         .withColumn(
             "recommended_action",
             when(col("toxic_score") >= 0.9, "Ban")
             .when(col("toxic_score") >= 0.7, "Hide")
             .when(col("toxic_score") >= 0.5, "Pending")
-            .otherwise("Safe")
+            .otherwise("Safe"),
         )
     )
 
 
 prediction_schema = StructType(
-        [
-            StructField("toxic", FloatType()),
-            StructField("severe_toxic", FloatType()),
-            StructField("threat", FloatType()),
-            StructField("insult", FloatType()),
-            StructField("identity_hate", FloatType()),
-        ]
-    )
+    [
+        StructField("toxic", FloatType()),
+        StructField("severe_toxic", FloatType()),
+        StructField("threat", FloatType()),
+        StructField("insult", FloatType()),
+        StructField("identity_hate", FloatType()),
+    ]
+)
+
+
 @pandas_udf(prediction_schema)
 def predict_udf(messages: pd.Series) -> pd.DataFrame:
     model, tokenizer, device = get_model_resources()
@@ -138,9 +131,9 @@ def predict_udf(messages: pd.Series) -> pd.DataFrame:
     encoding = tokenizer(
         messages.tolist(),
         truncation=True,
-        padding=True,          # ✅ dynamic padding
+        padding=True,  # ✅ dynamic padding
         max_length=128,
-        return_tensors="pt"
+        return_tensors="pt",
     )
     encoding = {k: v.to(device) for k, v in encoding.items()}
 
@@ -150,8 +143,6 @@ def predict_udf(messages: pd.Series) -> pd.DataFrame:
         probs = torch.sigmoid(logits).cpu().numpy()
 
     return pd.DataFrame(probs, columns=_TARGET_NAMES)
-
-
 
 
 def transform_comment(final_raw_df: DataFrame) -> DataFrame:
@@ -177,7 +168,6 @@ def transform_comment(final_raw_df: DataFrame) -> DataFrame:
             ),
         )
     )
-
 
     df_prediction = df_comment_cleaned.withColumn(
         "predictions", predict_udf(col("message_clean"))

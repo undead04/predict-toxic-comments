@@ -21,7 +21,7 @@ export const getTopToxicUsersController = async (
         const topUsers = await getTopToxicUsers(videoId);
 
         res.status(200).json(
-            ResponseDTO.withData(topUsers, "Fetch top toxic users successfully", 200)
+            ResponseDTO.successData(topUsers, "Fetch top toxic users successfully", 200)
         );
     } catch (error) {
         next(error);

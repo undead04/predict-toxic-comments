@@ -13,6 +13,7 @@ AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION")
 URL_MONGO = os.getenv("URL_MONGO")
 BOOTSTRAP_SERVERS = os.getenv("BOOTSTRAP_SERVERS", "localhost:9094")
 DATABASE_NAME = os.getenv("DATABASE_NAME")
+MODEL_PATH = os.getenv("MODEL_PATH")
 __all__ = [
     "AWS_ACCESS_KEY",
     "AWS_SECRET_ACCESS_KEY",
@@ -20,5 +21,5 @@ __all__ = [
     "AWS_DEFAULT_REGION",
     "URL_MONGO",
     "BOOTSTRAP_SERVERS",
-    "DATABASE_NAME"
+    "DATABASE_NAME",
 ]

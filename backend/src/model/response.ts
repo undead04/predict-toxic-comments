@@ -23,7 +23,13 @@ export class ResponseDTO<T, E = any> {
   ): ResponseDTO<U, never> {
     return new ResponseDTO<U, never>(message, null, statusCode, null);
   }
-
+  static successData<U>(
+    data: U,
+    message: string = "Success",
+    statusCode: number = 200
+  ): ResponseDTO<U, never> {
+    return new ResponseDTO<U, never>(message, data, statusCode, null);
+  }
   // E là kiểu của lỗi, ví dụ string[] hoặc string
   static error<E>(
     message: string,

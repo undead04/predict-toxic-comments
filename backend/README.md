@@ -1,19 +1,20 @@
 # Backend - Toxic Comment
 
-Đây là backend service cho dự án Toxic Comment. Đây là một ứng dụng Node.js thực hiện nhiệm vụ crawl bình luận trực tiếp (live chat) từ YouTube và đẩy chúng vào Kafka topic để xử lý tiếp theo.
+Đây là backend service cho dự án Toxic Comment. Ứng dụng Node.js này thực hiện nhiệm vụ crawl bình luận trực tiếp (live chat) từ YouTube, đẩy vào Kafka, và cung cấp các API để truy xuất kết quả phân tích độ độc hại (toxic) theo thời gian thực.
 
 ## Yêu cầu tiên quyết (Prerequisites)
 
-Trước khi chạy dự án này, hãy đảm bảo bạn đã cài đặt các thành phần sau:
+Trước khi chạy dự án này, hãy đảm bảo bạn đã cài đặt và cấu hình các thành phần sau:
 
-- **Node.js**: Phiên bản v18 trở lên (khuyên dùng v20+)
-- **Kafka**: Một instance Kafka đang chạy (mặc định cần chạy ở `localhost:9094`)
-- **YouTube Data API Key**: Một API key hợp lệ từ Google Cloud Console đã được kích hoạt YouTube Data API v3.
+- **Node.js**: Phiên bản v18 trở lên (khuyên dùng v20+).
+- **Kafka**: Hệ thống message queue (mặc định broker tại `localhost:9094`).
+- **Redis**: Để cache và lưu trữ trạng thái tạm thời.
+- **MongoDB**: Cơ sở dữ liệu chính để lưu trữ kết quả phân tích.
+- **YouTube Data API Key**: Key hợp lệ từ Google Cloud Console.
 
 ## Cài đặt (Installation)
 
 1.  Di chuyển vào thư mục `backend`:
-
     ```bash
     cd backend
     ```
@@ -25,64 +26,112 @@ Trước khi chạy dự án này, hãy đảm bảo bạn đã cài đặt các
 
 ## Cấu hình (Configuration)
 
-Tạo một file `.env` tại thư mục gốc của `backend` với các biến sau:
+Tạo file `.env` tại thư mục gốc của `backend` dựa trên file `.envexample`:
 
 ```env
-PORT=3000
+PORT=5000
 NODE_ENV=development
-# API Key Google Cloud Project của bạn đã kích hoạt YouTube Data API v3
-YOUTUBE_API_KEY=your_youtube_api_key_here
-# Tên Kafka Topic để đẩy tin nhắn vào
-KAFKA_TOPIC=comment
-```
 
-> **Lưu ý:** Địa chỉ Kafka broker hiện đang được hardcode là `localhost:9094` trong file `src/service/kafka-producer.ts`. Hãy đảm bảo Kafka broker của bạn có thể truy cập được tại địa chỉ này.
+# YouTube API
+YOUTUBE_API_KEY=your_youtube_api_key_here
+
+# Kafka
+KAFKA_TOPIC=comment
+KAFKA_BOOTSTRAP_SERVER=localhost:9094
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# MongoDB
+MONGO_URI=mongodb://localhost:27017/toxic-comment
+MONGO_DB_NAME=toxic-comment
+MONGO_MAX_POOL_SIZE=10
+MONGO_MIN_POOL_SIZE=5
+```
 
 ## Sử dụng (Usage)
 
 ### Môi trường phát triển (Development)
 
-Để khởi động server ở chế độ development với `ts-node`:
+Khởi động server với `ts-node` và tự động restart khi code thay đổi:
 
 ```bash
 npm run dev
 ```
 
-Server sẽ khởi động ở port được chỉ định trong file `.env` (mặc định: 3000).
+Server sẽ chạy tại `http://localhost:5000` (hoặc port bạn cấu hình).
 
 ## Tài liệu API (API Documentation)
 
-### 1. Bắt đầu Crawl Live Chat
+### 1. Quản lý Crawler
 
-Kích hoạt crawler cho live chat của một video YouTube cụ thể.
+#### Bắt đầu Crawl Live Chat
+Kích hoạt crawler cho một video YouTube đang live.
 
-- **Endpoint:** `POST /api/youtube/live-chat`
-- **Content-Type:** `application/json`
+-   **URL**: `POST /api/youtube/live-chat`
+-   **Body**:
+    ```json
+    {
+      "url": "https://www.youtube.com/watch?v=VIDEO_ID"
+    }
+    ```
+-   **Response**:
+    ```json
+    {
+      "status": "success",
+      "data": "Live Chat ID retrieved successfully" // Trả về nếu bắt đầu thành công
+    }
+    ```
 
-**Request Body:**
+#### Dừng Crawler
+Dừng process crawl cho video hiện tại.
 
-```json
-{
-  "url": "https://www.youtube.com/watch?v=VIDEO_ID"
-}
-```
+-   **URL**: `POST /api/youtube/stop-crawler`
+-   **Body**:
+    ```json
+    {
+      "videoId": "VIDEO_ID"
+    }
+    ```
 
-**Response:**
+### 2. Số liệu & Phân tích (Analytics)
 
-- **Thành công (200 OK):**
-  ```json
-  {
-    "status": "success",
-    "data": "Live Chat ID retrieved successfully"
-  }
-  ```
-- **Lỗi (400 Bad Request):** Nếu thiếu `url`.
-- **Lỗi (404 Not Found):** Nếu video không tồn tại hoặc không có live chat đang hoạt động.
+#### Lấy danh sách phân tích bình luận
+Lấy danh sách các bình luận đã được phân tích cho một video.
+
+-   **URL**: `GET /api/youtube/analysis/:videoId`
+-   **Response**: Danh sách các comment kèm điểm số độc hại.
+
+#### Lấy thống kê luồng (Stream Metrics)
+Lấy các chỉ số thống kê tổng quan (tổng comment, số comment độc hại, v.v.).
+
+-   **URL**: `GET /api/youtube/metrics/:videoId`
+-   **Response**: Aggregated metrics của video.
+
+#### Top Toxic Users
+Lấy danh sách top 5 người dùng có bình luận độc hại nhất.
+
+-   **URL**: `GET /api/youtube/toxic-users/top/:videoId`
+-   **Response**: Danh sách user và chỉ số toxic của họ.
+
+### 3. Real-time Events (SSE)
+
+#### Stream Events
+Kết nối Server-Sent Events để nhận dữ liệu update realtime cho frontend.
+
+-   **URL**: `GET /api/youtube/events/:videoId`
+-   **Mô tả**: Client lắng nghe endpoint này để nhận các update mới nhất về comment và metrics mà không cần polling.
 
 ## Cấu trúc dự án (Project Structure)
 
-- `src/index.ts`: Điểm khởi chạy của ứng dụng.
-- `src/controller`: Xử lý các yêu cầu API gửi đến.
-- `src/service`: Logic nghiệp vụ (tương tác YouTube API, Kafka producer).
-- `src/router`: Định nghĩa các đường dẫn API.
-- `src/utils`: Các hàm tiện ích.
+-   `src/index.ts`: Entry point của ứng dụng.
+-   `src/controller`: Các hàm xử lý logic cho từng route.
+-   `src/router`: Định nghĩa các API endpoint.
+-   `src/service`:
+    -   `kafka-producer.ts`: Đẩy dữ liệu vào Kafka.
+    -   `youtube-service.ts`: Tương tác với YouTube API.
+    -   `mongo-service.ts`: Truy vấn dữ liệu từ MongoDB.
+    -   `redis-service.ts`: Cache và state management.
+-   `src/model`: Các định nghĩa DTO và model dữ liệu.

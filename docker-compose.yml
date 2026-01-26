@@ -2,17 +2,13 @@
 x-kafka-env: &kafka-env
   KAFKA_CLUSTER_ID: "6db71891-766b-4e46-9963-36691459a99c"
   KAFKA_PROCESS_ROLES: "broker,controller"
-  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true" # Để true cho tiện dev, sau này tắt sau
   KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT"
   KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
   KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
   KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-1:9093"
-  KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
-  KAFKA_LOG_RETENTION_HOURS: 24
-  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+  KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m" # Giới hạn heap để không tràn RAM VM
+  KAFKA_LOG_RETENTION_HOURS: 12 # Giảm thời gian lưu log để tiết kiệm disk
   KAFKA_LOG_DIRS: "/var/lib/kafka/data"
 
 # 2. Template chung cho Service
@@ -23,21 +19,23 @@ x-kafka-common: &kafka-common
   deploy:
     resources:
       limits:
-        memory: 750M
+        memory: 700M # Tăng lên 1G để chạy ổn định hơn trên Cloud
 
 services:
   kafka-1:
+    env_file:
+      - .env
     <<: *kafka-common
     container_name: kafka-1
     hostname: kafka-1
     ports:
-      - "9092:9092"
-      - "9094:9094"
+      - "9092:9092" # Port cho Cloud/Local Laptop
     environment:
-      <<: *kafka-env # Kế thừa đúng chuẩn Anchor ở đây
+      <<: *kafka-env
       KAFKA_NODE_ID: 1
-      KAFKA_LISTENERS: "INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:9094"
-      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka-1:9092,EXTERNAL://localhost:9094"
+      KAFKA_LISTENERS: "INTERNAL://:29092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9092"
+      # QUAN TRỌNG: EXTERNAL trỏ về IP Public của Azure
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka-1:29092,EXTERNAL://${KAFKA_ADVERTISED_LISTENERS}:9092"
     volumes:
       - kafka-1-data:/var/lib/kafka/data
 
@@ -51,71 +49,90 @@ services:
     ports:
       - "8085:8080"
     environment:
-      KAFKA_CLUSTERS_0_NAME: "Dev-Cluster"
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka-1:9092"
+      KAFKA_CLUSTERS_0_NAME: "Azure-Cluster"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka-1:29092"
+    deploy:
+      resources:
+        limits:
+          memory: 512M # Tăng lên 1G để chạy ổn định hơn trên Cloud
 
-  kafka-init:
-    <<: *kafka-common
-    container_name: kafka-init
-    depends_on:
-      - kafka-1
-    entrypoint: ["/bin/bash", "-c"]
-    networks:
-      - comment-toxic
-    command: |
-      "
-      echo 'Waiting for Kafka...'
-      until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:9092 --list; do
-        sleep 3
-      done
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:9092 --create --if-not-exists --topic comment --partitions 1 --replication-factor 1
-      echo 'Topic created successfully!'
-      "
   # =========================
-  # 5. SPARK MASTER
+  # SPARK MASTER (Tối ưu RAM)
   # =========================
   spark-master:
-    image: apache/spark:3.5.7-scala2.12-java17-python3-r-ubuntu
+    image: toxic-project-spark-base:latest
     container_name: spark-master
-    hostname: spark-master
     ports:
       - "8080:8080"
       - "7077:7077"
     networks:
       - comment-toxic
-    depends_on:
-      - kafka-1
-    volumes:
-      - ./spark_app:/opt/spark_app/
     environment:
-      SPARK_MASTER_WEBUI_PORT: 8080
-      SPARK_MODE: master
-      SPARK_MASTER_HOST: spark-master
-      SPARK_MASTER_PORT: 7077
+      - SPARK_MODE=master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 700M
+
   # =========================
-  # 6. SPARK WORKER (Chỉ dùng 1 cái để tiết kiệm RAM)
+  # SPARK WORKER (Chỉ dùng 1 để tiết kiệm RAM)
   # =========================
   spark-worker:
-    image: apache/spark:3.5.7-scala2.12-java17-python3-r-ubuntu
+    image: toxic-project-spark-base:latest
     container_name: spark-worker
     depends_on: [spark-master]
     networks:
       - comment-toxic
     environment:
-      SPARK_WORKER_MEMORY: 1200m
-      SPARK_MODE: worker
-      SPARK_WORKER_CORES: 1
-      SPARK_MASTER_URL: spark://spark-master:7077
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1500m
+      - SPARK_WORKER_CORES=2
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     deploy:
       resources:
         limits:
-          memory: 1400m
+          memory: 2500M
+
+  model-api:
+    build: ./spark_app # Docker sẽ tìm Dockerfile bên trong folder này để build
+    image: toxic-project-spark-base:latest # Đặt tên chung cho image
+    container_name: toxic-model-api
+    working_dir: /opt/spark_app
+    ports:
+      - "8000:8000"
+      - "4040:4040"
+    networks:
+      - comment-toxic
+    volumes:
+      - ./spark_app:/opt/spark_app
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-1:29092
+    command: >
+      spark-submit 
+        --master spark://spark-master:7077 
+        --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.apache.hadoop:hadoop-aws:3.3.4,org.mongodb.spark:mongo-spark-connector_2.12:10.3.0,com.redislabs:spark-redis_2.12:3.1.0 
+        --conf spark.executorEnv.PYTHONPATH=/opt/spark_app 
+        main.py;
+    deploy:
+      resources:
+        limits:
+          memory: 2G # Dành riêng cho Model load lên RAM
+
+  # =========================
+  # 7. REDIS
+  # =========================
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - comment-toxic
+    volumes:
+      - redis-data:/data
 
 networks:
   comment-toxic:
@@ -124,11 +141,4 @@ networks:
 
 volumes:
   kafka-1-data:
-    driver: local
-# spark.executor.instances=1
-# spark.executor.cores=1
-# spark.executor.memory=768m
-# spark.executor.memoryOverhead=256m
-# spark.driver.memory=1g
-# spark.driver.cores=1
-# spark.driver.memoryOverhead=256m
+  redis-data:
