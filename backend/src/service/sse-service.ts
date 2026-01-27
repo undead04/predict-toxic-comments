@@ -17,6 +17,15 @@ import { REDIS_HOST, REDIS_PASSWORD, REDIS_PORT } from "../utils/config";
 const clients = new Map<string, Response[]>();
 
 /**
+ * Buffer for batching new comments to save bandwidth.
+ * Key: videoId
+ * Value: Array of comments
+ */
+const commentBuffers = new Map<string, any[]>();
+const COMMENT_BATCH_SIZE = 5;
+const COMMENT_FLUSH_INTERVAL = 1000; // 1s
+
+/**
  * Bộ nhớ đệm (Cache) để lưu trữ trạng thái trước đó của leaderboard cho mỗi video.
  */
 const previousLeaderboards = new Map<string, string>();
@@ -183,10 +192,25 @@ export const initSSERealtimeListener = () => {
     ];
     // 1. Lắng nghe collection 'comments'
     CommentModel.watch(pipelineComment).on("change", (change: any) => {
-        const newComment = change.fullDocument
+        const newComment = change.fullDocument;
         if (newComment && newComment.video_id) {
+            const videoId = newComment.video_id;
 
-            broadcastSSE(newComment.video_id, "new_comment", newComment);
+            // Lấy hoặc tạo buffer cho videoId này
+            if (!commentBuffers.has(videoId)) {
+                commentBuffers.set(videoId, []);
+
+                // Set timeout để flush buffer sau một khoảng thời gian
+                setTimeout(() => flushCommentBuffer(videoId), COMMENT_FLUSH_INTERVAL);
+            }
+
+            const buffer = commentBuffers.get(videoId)!;
+            buffer.push(newComment);
+
+            // Nếu buffer đạt kích thước tối đa, flush ngay lập tức
+            if (buffer.length >= COMMENT_BATCH_SIZE) {
+                flushCommentBuffer(videoId);
+            }
         }
     });
     const pipelineMetric = [
@@ -258,3 +282,13 @@ export const initSSERealtimeListener = () => {
         }
     });
 };
+/**
+ * Gửi toàn bộ comment trong buffer và xóa buffer.
+ */
+function flushCommentBuffer(videoId: string) {
+    const buffer = commentBuffers.get(videoId);
+    if (buffer && buffer.length > 0) {
+        broadcastSSE(videoId, "new_comments", buffer);
+        commentBuffers.delete(videoId);
+    }
+}

@@ -40,7 +40,7 @@ interface State {
 
 type Action =
     | { type: 'SET_INITIAL_COMMENTS'; payload: Message[] }
-    | { type: 'ADD_NEW_COMMENT'; payload: Message }
+    | { type: 'ADD_NEW_COMMENTS'; payload: Message[] }
     | { type: 'SET_LEADERBOARD'; payload: LeaderboardUser[] }
     | { type: 'SET_INITIAL_METRICS'; payload: MetricData[] }
     | { type: 'UPDATE_METRICS'; payload: MetricData }
@@ -58,10 +58,10 @@ function liveStreamReducer(state: State, action: Action): State {
     switch (action.type) {
         case 'SET_INITIAL_COMMENTS':
             return { ...state, messages: action.payload };
-        case 'ADD_NEW_COMMENT':
+        case 'ADD_NEW_COMMENTS':
             return {
                 ...state,
-                messages: [action.payload, ...state.messages].slice(0, CONFIG.MAX_MESSAGES_CACHE)
+                messages: [...action.payload, ...state.messages].slice(0, CONFIG.MAX_MESSAGES_CACHE)
             };
         case 'SET_LEADERBOARD':
             return { ...state, leaderboard: action.payload };
@@ -132,10 +132,10 @@ export const useLiveStream = (url: string, isTracking: boolean) => {
             dispatch({ type: 'SET_INITIAL_COMMENTS', payload: formatted });
         });
 
-        // Comment mới
-        eventSource.addEventListener('new_comment', (event: any) => {
-            const comment: Message = JSON.parse(event.data);
-            dispatch({ type: 'ADD_NEW_COMMENT', payload: comment });
+        // Comment mới (batched)
+        eventSource.addEventListener('new_comments', (event: any) => {
+            const comments: Message[] = JSON.parse(event.data);
+            dispatch({ type: 'ADD_NEW_COMMENTS', payload: comments });
         });
 
         // Leaderboard
