@@ -54,86 +54,28 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M # Tăng lên 1G để chạy ổn định hơn trên Cloud
-
-  # =========================
-  # SPARK MASTER (Tối ưu RAM)
-  # =========================
-  spark-master:
-    image: toxic-project-spark-base:latest
-    container_name: spark-master
-    ports:
-      - "8080:8080"
-      - "7077:7077"
-    networks:
-      - comment-toxic
-    environment:
-      - SPARK_MODE=master
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
-    deploy:
-      resources:
-        limits:
-          memory: 700M
-
-  # =========================
-  # SPARK WORKER (Chỉ dùng 1 để tiết kiệm RAM)
-  # =========================
-  spark-worker:
-    image: toxic-project-spark-base:latest
-    container_name: spark-worker
-    depends_on: [spark-master]
-    networks:
-      - comment-toxic
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=1500m
-      - SPARK_WORKER_CORES=2
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
-    deploy:
-      resources:
-        limits:
-          memory: 2500M
+          memory: 512M
 
   model-api:
-    build: ./spark_app # Docker sẽ tìm Dockerfile bên trong folder này để build
-    image: toxic-project-spark-base:latest # Đặt tên chung cho image
+    build: ./spark_app
     container_name: toxic-model-api
-    working_dir: /opt/spark_app
-    ports:
-      - "8000:8000"
-      - "4040:4040"
+    depends_on:
+      - kafka-1
+    environment:
+      - SPARK_MASTER=local[2] 
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-1:29092
     networks:
       - comment-toxic
+    ports:
+      - "4040:4040"
+      - "8000:8000"
     volumes:
       - ./spark_app:/opt/spark_app
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka-1:29092
-    command: >
-      spark-submit 
-        --master spark://spark-master:7077 
-        --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.apache.hadoop:hadoop-aws:3.3.4,org.mongodb.spark:mongo-spark-connector_2.12:10.3.0,com.redislabs:spark-redis_2.12:3.1.0 
-        --conf spark.executorEnv.PYTHONPATH=/opt/spark_app 
-        --py-files spark_app/app_code.zip
-        main.py;
+    entrypoint: ["/bin/bash", "/opt/spark_app/entrypoint.sh"]
     deploy:
       resources:
         limits:
-          memory: 2G # Dành riêng cho Model load lên RAM
-
-  # =========================
-  # 7. REDIS
-  # =========================
-  redis:
-    image: redis:alpine
-    container_name: redis
-    restart: always
-    ports:
-      - "6379:6379"
-    networks:
-      - comment-toxic
-    volumes:
-      - redis-data:/data
+          memory: 5G
 
 networks:
   comment-toxic:
@@ -142,4 +84,3 @@ networks:
 
 volumes:
   kafka-1-data:
-  redis-data:

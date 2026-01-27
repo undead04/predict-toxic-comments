@@ -1,0 +1,17 @@
+# 1. Cài Docker tự động
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+# LOGOUT SSH VÀ LOGIN LẠI ĐỂ CẬP NHẬT QUYỀN
+
+# 2. Tạo thư mục dự án
+mkdir toxic-project && cd toxic-project
+
+# 3. Tạo file .env
+echo "KAFKA_ADVERTISED_LISTENERS=<IP_PUBLIC_VM>" > .env
+
+# 4. Copy nội dung docker-compose.yml của bạn vào đây
+nano docker-compose.yml # Dán nội dung vào, Ctrl+O để Save, Ctrl+X để thoát
+
+# 5. Khởi chạy
+docker compose up -d

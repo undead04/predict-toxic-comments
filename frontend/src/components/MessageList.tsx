@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, AlertTriangle } from 'lucide-react';
 import { Message } from '@/hooks/useLiveStream';
 
 interface MessageListProps {
@@ -33,11 +33,11 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, totalMessage
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3">
-                            {messages.map((msg) => {
+                            {messages.map((msg, index) => {
                                 const isToxic = msg.toxic_label === 'Toxic';
                                 return (
                                     <div
-                                        key={msg.comment_id}
+                                        key={index}
                                         className={`relative flex items-center justify-between gap-4 rounded-2xl border p-4 transition-all hover:shadow-md ${isToxic
                                             ? 'border-red-100 bg-red-50/20 dark:border-red-900/30 dark:bg-red-900/10'
                                             : 'border-transparent bg-gray-50 hover:bg-white dark:bg-white/5 dark:hover:bg-white/10'
@@ -68,10 +68,26 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, totalMessage
                                         </div>
 
                                         {isToxic && (
-                                            <div className="flex-shrink-0">
-                                                <span className="rounded-md bg-red-100 px-2 py-1 text-[10px] font-black text-red-600 dark:bg-red-500/20 dark:text-red-400 uppercase">
-                                                    {msg.toxic_label}
-                                                </span>
+                                            <div className="flex-shrink-0 flex flex-col items-end gap-1.5 min-w-[120px]">
+                                                <div className="flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 dark:bg-red-500/20">
+                                                    <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />
+                                                    <span className="text-[10px] font-black uppercase text-red-600 dark:text-red-400">
+                                                        {msg.toxic_label}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex flex-col items-end gap-1 mt-1">
+                                                    {msg.toxic_category && (
+                                                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-md">
+                                                            {msg.toxic_category}
+                                                        </span>
+                                                    )}
+                                                    {msg.recommended_action && (
+                                                        <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 dark:text-red-400 border border-red-100 dark:border-red-900/30 px-2 py-0.5 rounded-md">
+                                                            <span>{msg.recommended_action}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                     </div>

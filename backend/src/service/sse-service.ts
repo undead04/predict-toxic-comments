@@ -164,30 +164,49 @@ async function sendCurrentLeaderboard(videoId: string, specificRes?: Response) {
  * Lắng nghe các thay đổi từ MongoDB Change Streams cho SSE.
  */
 export const initSSERealtimeListener = () => {
+    const pipelineComment = [
+        { $match: { operationType: "insert" } },
+        {
+            $project: {
+                "fullDocument._id": 1,
+                "fullDocument.author_name": 1,
+                "fullDocument.author_image": 1,
+                "fullDocument.message": 1,
+                "fullDocument.video_id": 1,
+                "fullDocument.comment_id": 1,
+                "fullDocument.published_at": 1,
+                "fullDocument.toxic_label": 1,
+                "fullDocument.toxic_category": 1,
+                "fullDocument.recommended_action": 1,
+            }
+        }
+    ];
     // 1. Lắng nghe collection 'comments'
-    CommentModel.watch([{ $match: { operationType: "insert" } }]).on("change", (change: any) => {
-        const newComment = change.fullDocument;
+    CommentModel.watch(pipelineComment).on("change", (change: any) => {
+        const newComment = change.fullDocument
         if (newComment && newComment.video_id) {
+
             broadcastSSE(newComment.video_id, "new_comment", newComment);
         }
     });
-
+    const pipelineMetric = [
+        { $match: { operationType: { $in: ["update", "insert", "replace"] } } },
+        { $project: { "fullDocument.video_id": 1, "fullDocument.window_start": 1, "fullDocument.total_comments": 1, "fullDocument.toxic_count": 1, "fullDocument.unique_viewers": 1 } }
+    ];
     // 2. Lắng nghe collection 'metrics'
-    MetricModel.watch(
-        [{ $match: { operationType: { $in: ["update", "insert", "replace"] } } }],
-        { fullDocument: "updateLookup" }
-    ).on("change", (change: any) => {
-        const updatedMetric = change.fullDocument;
+    MetricModel.watch(pipelineMetric).on("change", (change: any) => {
+        const updatedMetric = change.fullDocument
         if (updatedMetric && updatedMetric.video_id) {
             broadcastSSE(updatedMetric.video_id, "metric_update", updatedMetric);
         }
     });
 
     // 3. Lắng nghe collection 'toxic_user_metrics'
-    ToxicUserModel.watch(
-        [{ $match: { operationType: { $in: ["insert", "update", "replace"] } } }],
-        { fullDocument: "updateLookup" }
-    ).on("change", async (change: any) => {
+    const pipelineToxicUser = [
+        { $match: { operationType: { $in: ["insert", "update", "replace"] } } },
+        { $project: { "fullDocument.video_id": 1, "fullDocument.author_id": 1, "fullDocument.author_name": 1, "fullDocument.author_image": 1, "fullDocument.toxic_count": 1 } }
+    ];
+    ToxicUserModel.watch(pipelineToxicUser).on("change", async (change: any) => {
         const doc = change.fullDocument;
         if (!doc || !doc.video_id || !doc.author_id) return;
 

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { CONFIG } from '@/config';
 import { youtubeService } from '@/services/youtubeService';
 
 export interface Message {
+    _id?: string;
     comment_id: string;
     video_id: string;
     author_id: string;
@@ -11,6 +12,7 @@ export interface Message {
     message: string;
     published_at: string;
     toxic_label: string;
+    toxic_category: string;
     recommended_action: string;
 }
 
@@ -25,16 +27,68 @@ export interface MetricData {
     video_id: string;
     window_start: string;
     total_comments: number;
-    toxic_comments: number;
-    toxic_rate: number;
-    unique_users: number;
+    toxic_count: number;
+    unique_viewers: number;
+}
+
+interface State {
+    messages: Message[];
+    leaderboard: LeaderboardUser[];
+    metrics: MetricData[];
+    crawlerStatus: string | null;
+}
+
+type Action =
+    | { type: 'SET_INITIAL_COMMENTS'; payload: Message[] }
+    | { type: 'ADD_NEW_COMMENT'; payload: Message }
+    | { type: 'SET_LEADERBOARD'; payload: LeaderboardUser[] }
+    | { type: 'SET_INITIAL_METRICS'; payload: MetricData[] }
+    | { type: 'UPDATE_METRICS'; payload: MetricData }
+    | { type: 'SET_CRAWLER_STATUS'; payload: string | null }
+    | { type: 'RESET_STATE' };
+
+const initialState: State = {
+    messages: [],
+    leaderboard: [],
+    metrics: [],
+    crawlerStatus: null,
+};
+
+function liveStreamReducer(state: State, action: Action): State {
+    switch (action.type) {
+        case 'SET_INITIAL_COMMENTS':
+            return { ...state, messages: action.payload };
+        case 'ADD_NEW_COMMENT':
+            return {
+                ...state,
+                messages: [action.payload, ...state.messages].slice(0, CONFIG.MAX_MESSAGES_CACHE)
+            };
+        case 'SET_LEADERBOARD':
+            return { ...state, leaderboard: action.payload };
+        case 'SET_INITIAL_METRICS':
+            return { ...state, metrics: action.payload };
+        case 'UPDATE_METRICS': {
+            const metric = action.payload;
+            const dataMap = new Map(state.metrics.map(item => [item.window_start, item]));
+            dataMap.set(metric.window_start, metric);
+
+            const updatedMetrics = Array.from(dataMap.values())
+                .sort((a, b) => new Date(a.window_start).getTime() - new Date(b.window_start).getTime())
+                .slice(-CONFIG.CHART_POINTS_LIMIT);
+
+            return { ...state, metrics: updatedMetrics };
+        }
+        case 'SET_CRAWLER_STATUS':
+            return { ...state, crawlerStatus: action.payload };
+        case 'RESET_STATE':
+            return initialState;
+        default:
+            return state;
+    }
 }
 
 export const useLiveStream = (url: string, isTracking: boolean) => {
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
-    const [metrics, setMetrics] = useState<MetricData[]>([]);
-    const [crawlerStatus, setCrawlerStatus] = useState<string | null>(null);
+    const [state, dispatch] = useReducer(liveStreamReducer, initialState);
 
     // Extract video ID from YouTube URL
     const extractVideoId = useCallback((url: string) => {
@@ -43,16 +97,14 @@ export const useLiveStream = (url: string, isTracking: boolean) => {
         return (match && match[7].length === 11) ? match[7] : null;
     }, []);
 
+    const videoId = useMemo(() => extractVideoId(url), [url, extractVideoId]);
+
     useEffect(() => {
         if (!isTracking) {
-            setMessages([]);
-            setLeaderboard([]);
-            setMetrics([]);
-            setCrawlerStatus(null);
+            dispatch({ type: 'RESET_STATE' });
             return;
         }
 
-        const videoId = extractVideoId(url);
         if (!videoId) return;
 
         // --- Khởi tạo SSE Connection ---
@@ -65,7 +117,7 @@ export const useLiveStream = (url: string, isTracking: boolean) => {
         // Comments ban đầu
         eventSource.addEventListener('initial_comments', (event: any) => {
             const comments = JSON.parse(event.data);
-            const formatted: Message[] = comments.map((c: Message) => ({
+            const formatted: Message[] = comments.map((c: any) => ({
                 comment_id: c.comment_id,
                 video_id: c.video_id,
                 author_id: c.author_id,
@@ -74,85 +126,72 @@ export const useLiveStream = (url: string, isTracking: boolean) => {
                 message: c.message,
                 published_at: c.published_at,
                 toxic_label: c.toxic_label,
+                toxic_category: c.toxic_category,
                 recommended_action: c.recommended_action,
             }));
-            setMessages(formatted);
+            dispatch({ type: 'SET_INITIAL_COMMENTS', payload: formatted });
         });
 
         // Comment mới
         eventSource.addEventListener('new_comment', (event: any) => {
             const comment: Message = JSON.parse(event.data);
-            const formatted: Message = {
-                comment_id: comment.comment_id,
-                video_id: comment.video_id,
-                author_id: comment.author_id,
-                author_name: comment.author_name,
-                author_image: comment.author_image,
-                message: comment.message,
-                published_at: comment.published_at,
-                toxic_label: comment.toxic_label,
-                recommended_action: comment.recommended_action,
-            };
-            setMessages(prev => [formatted, ...prev].slice(0, CONFIG.MAX_MESSAGES_CACHE));
+            dispatch({ type: 'ADD_NEW_COMMENT', payload: comment });
         });
 
         // Leaderboard
         eventSource.addEventListener('leaderboard:update', (event: any) => {
             const data: LeaderboardUser[] = JSON.parse(event.data);
-            setLeaderboard(data);
+            dispatch({ type: 'SET_LEADERBOARD', payload: data });
         });
 
         // Metrics ban đầu
         eventSource.addEventListener('initial_metrics', (event: any) => {
-            const data: MetricData[] = JSON.parse(event.data);
-            const formatted: MetricData[] = data.map((m: MetricData) => ({
+            const data: any[] = JSON.parse(event.data);
+            const formatted: MetricData[] = data.map((m: any) => ({
                 video_id: m.video_id,
                 window_start: m.window_start,
                 total_comments: m.total_comments,
-                toxic_comments: m.toxic_comments,
-                toxic_rate: m.toxic_rate,
-                unique_users: m.unique_users
+                toxic_count: m.toxic_count || 0,
+                unique_viewers: m.unique_viewers || 0
             }));
-            setMetrics(formatted);
+            dispatch({ type: 'SET_INITIAL_METRICS', payload: formatted });
         });
 
         // Metrics update
         eventSource.addEventListener('metric_update', (event: any) => {
-            const metric: MetricData = JSON.parse(event.data);
+            const metric: any = JSON.parse(event.data);
             const formatted: MetricData = {
                 video_id: metric.video_id,
                 window_start: metric.window_start,
                 total_comments: metric.total_comments,
-                toxic_comments: metric.toxic_comments,
-                toxic_rate: metric.toxic_rate,
-                unique_users: metric.unique_users
+                toxic_count: metric.toxic_count || 0,
+                unique_viewers: metric.unique_viewers || 0
             };
-            setMetrics(prev => [...prev, formatted].slice(-CONFIG.CHART_POINTS_LIMIT));
+            dispatch({ type: 'UPDATE_METRICS', payload: formatted });
         });
 
         // Trạng thái crawler
         eventSource.addEventListener('crawler_status', (event: any) => {
             const data: { type: string } = JSON.parse(event.data);
             console.log('Crawler status update:', data.type);
-            setCrawlerStatus(data.type);
+            dispatch({ type: 'SET_CRAWLER_STATUS', payload: data.type });
+            if (data.type === 'stopped') {
+                eventSource.close();
+            }
         });
 
         eventSource.onerror = (error) => {
             console.error('SSE Error:', error);
-            eventSource.close();
         };
 
         return () => {
             console.log('Closing SSE connection');
             eventSource.close();
         };
-    }, [isTracking, url, extractVideoId]);
+    }, [isTracking, videoId]);
 
     return {
-        messages,
-        leaderboard,
-        metrics,
-        crawlerStatus,
-        videoId: extractVideoId(url)
+        ...state,
+        videoId
     };
 };

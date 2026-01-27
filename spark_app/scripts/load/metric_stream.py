@@ -13,7 +13,7 @@ def get_batch_agg_metric(batch_df: pd.DataFrame):
     logger.info("Aggregating metrics for batch.")
     return (
         batch_df
-        .withWatermark("published_at", "2 minutes")
+        .withWatermark("published_at", "3 minutes")
         .groupBy(
             F.window(F.col("published_at"), "1 minutes"), F.col("video_id")
         )

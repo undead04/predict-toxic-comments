@@ -16,10 +16,12 @@ export const getCommentsByVideoId = async (videoId: string): Promise<Partial<ILi
             author_name: 1,
             message: 1,
             toxic_label: 1,
+            toxic_category: 1,
             recommended_action: 1,
             published_at: 1,
         })
-        .sort({ published_at: 1 }) // Sắp xếp theo thời gian tăng dần
+        .limit(100)
+        .sort({ published_at: -1 }) // Sắp xếp theo thời gian tăng dần
         .lean();
 
     return comments;

@@ -33,7 +33,14 @@ app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP to allow SSE
 }));
 app.use(morgan("dev"));
-app.use(compression());
+app.use(compression({
+  filter: (req: Request, res: Response) => {
+    if (req.originalUrl && req.originalUrl.includes('/youtube/events/')) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
 // init body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

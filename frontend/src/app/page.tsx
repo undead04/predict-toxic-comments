@@ -16,7 +16,7 @@ export default function Home() {
 
   // Custom Hook to manage all Live logic (Socket, Metrics, Messages, Leaderboard)
   const { messages, leaderboard, metrics, crawlerStatus } = useLiveStream(url, isTracking);
-
+  console.log(crawlerStatus);
   const handleStart = async () => {
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       setIsLoading(true);
@@ -178,10 +178,10 @@ export default function Home() {
 
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className={`flex h-9 items-center gap-2 rounded-full border px-4 text-[10px] font-black uppercase transition-colors ${crawlerStatus === 'running'
-                      ? 'border-green-100 bg-green-50 text-green-600 dark:border-green-900/30 dark:bg-green-900/20'
-                      : crawlerStatus === 'stopped' || crawlerStatus === 'ended'
-                        ? 'border-orange-100 bg-orange-50 text-orange-600 dark:border-orange-900/30 dark:bg-orange-900/20'
-                        : 'border-red-100 bg-red-50 text-red-600 dark:border-red-900/30 dark:bg-red-900/20'
+                    ? 'border-green-100 bg-green-50 text-green-600 dark:border-green-900/30 dark:bg-green-900/20'
+                    : crawlerStatus === 'stopped' || crawlerStatus === 'ended'
+                      ? 'border-orange-100 bg-orange-50 text-orange-600 dark:border-orange-900/30 dark:bg-orange-900/20'
+                      : 'border-red-100 bg-red-50 text-red-600 dark:border-red-900/30 dark:bg-red-900/20'
                     }`}>
                     <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${crawlerStatus === 'running' ? 'bg-green-600' : 'bg-red-600'
                       }`}></div>

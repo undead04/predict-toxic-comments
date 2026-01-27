@@ -19,8 +19,8 @@ from pyspark.sql.pandas.functions import pandas_udf
 from utils.logger import get_logger
 import os
 import threading
-from scripts.models.ModelLoader import ModelLoader
 from utils.config import MODEL_PATH, BUCKET
+from pyspark import SparkFiles
 
 logger = get_logger("TransformComment")
 # Tốt nhất là lấy từ Environment Variable, mặc định là /tmp
@@ -60,8 +60,9 @@ def get_model_resources():
                 model = torch.quantization.quantize_dynamic(
                     model, {torch.nn.Linear}, dtype=torch.qint8
                 )
-                loader = ModelLoader(bucket=BUCKET, device=_device)
-                model.load_state_dict(loader.load(MODEL_PATH))
+                # Load model weights from S3
+                local_path = SparkFiles.get("visobert_toxic.pt")
+                model.load_state_dict(torch.load(local_path, map_location=_device))
 
             except Exception as e:
                 logger.exception("❌ Failed to load model weights")

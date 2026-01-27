@@ -13,7 +13,7 @@ def get_batch_user_toxic(batch_df: pd.DataFrame):
     """Aggregates user metrics for a static batch."""
     logger.info("Aggregating user metrics for a static batch.")
     return (
-        batch_df.withWatermark("published_at", "2 minutes")
+        batch_df.withWatermark("published_at", "3 minutes")
         .groupBy(
             F.window(F.col("published_at"), "1 minutes"),
             F.col("video_id"),
@@ -75,6 +75,8 @@ def write_to_mongo_user_toxic_batch(batch_df, batch_id):
                 "total_comments": r["total_comments"],
                 "toxic_count": r["toxic_count"],
                 "last_violation_time": r["last_violation_time"],
+                "author_name": r["author_name"],
+                "author_image": r["author_image"],
             },
         }
         ops.append(UpdateOne(query, update, upsert=True))

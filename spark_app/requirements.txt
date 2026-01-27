@@ -9,3 +9,4 @@ protobuf
 sentencepiece
 pymongo
 boto3
+tenacity

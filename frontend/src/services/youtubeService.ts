@@ -12,6 +12,6 @@ export const youtubeService = {
         return response.data;
     },
     sseStreamEvents: (videoId: string) => {
-        return new EventSource(`${CONFIG.API_URL}/youtube/events/${videoId}`);
+        return new EventSource(`${CONFIG.API_URL}/api/youtube/events/${videoId}`);
     },
 };

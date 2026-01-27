@@ -13,12 +13,13 @@ export const getMetricsByVideoId = async (videoId: string): Promise<Partial<ILiv
             video_id: 1,
             window_start: 1,
             total_comments: 1,
-            toxic_comments: 1,
-            toxic_rate: 1,
-            unique_users: 1,
+            toxic_count: 1,
+            toxic_ratio: 1,
+            unique_viewers: 1,
         })
-        .sort({ window_start: 1 }) // Sắp xếp theo thời gian tăng dần
+        .sort({ window_start: -1 }) // Sắp xếp theo thời gian tăng dần
+        .limit(20)
         .lean();
 
-    return metrics;
+    return metrics.reverse();
 };
