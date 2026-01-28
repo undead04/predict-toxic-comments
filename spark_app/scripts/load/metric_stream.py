@@ -62,7 +62,9 @@ def write_to_mongo_metric_batch(batch_df, batch_id):
                 "toxic_count": r["toxic_count"],
                 "total_comments": r["total_comments"],
                 "unique_viewers": r["unique_viewers"],
-                "window_end": r["window_end"],
+            },
+            "$inc": {
+                "_version": 1,
             },
         }
         ops.append(UpdateOne(query, update, upsert=True))

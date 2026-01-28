@@ -78,6 +78,9 @@ def write_to_mongo_user_toxic_batch(batch_df, batch_id):
                 "author_name": r["author_name"],
                 "author_image": r["author_image"],
             },
+            "$inc": {
+                "_version": 1,
+            },
         }
         ops.append(UpdateOne(query, update, upsert=True))
 
