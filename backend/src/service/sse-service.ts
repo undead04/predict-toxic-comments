@@ -22,22 +22,15 @@ const clients = new Map<string, Response[]>();
  * Value: Array of comments
  */
 const commentBuffers = new Map<string, any[]>();
-const COMMENT_BATCH_SIZE = 5;
-const COMMENT_FLUSH_INTERVAL = 1000; // 1s
+const COMMENT_BATCH_SIZE = 10;
+const COMMENT_FLUSH_INTERVAL = 10000; // 1s
 
 /**
  * Bộ nhớ đệm (Cache) để lưu trữ trạng thái trước đó của leaderboard cho mỗi video.
  */
 const previousLeaderboards = new Map<string, string>();
 
-/**
- * Redis Subscriber instance.
- */
-const redisSub = new Redis({
-    host: REDIS_HOST,
-    port: REDIS_PORT,
-    password: REDIS_PASSWORD,
-});
+// redisSub is removed in favor of Redis Streams reading
 
 /**
  * Thêm một client mới vào danh sách theo dõi.
@@ -57,6 +50,7 @@ export const addSSEClient = async (videoId: string, res: Response) => {
         sendSSE(res, "initial_metrics", initialMetrics);
 
         await sendCurrentLeaderboard(videoId, res);
+        await sendInitialCrawlerStatus(videoId, res);
     } catch (error) {
         console.error(`Lỗi khi gửi dữ liệu ban đầu SSE cho video ${videoId}:`, error);
     }
@@ -170,6 +164,30 @@ async function sendCurrentLeaderboard(videoId: string, specificRes?: Response) {
 }
 
 /**
+ * Lấy trạng thái crawler cuối cùng từ Redis Stream và gửi cho client.
+ */
+async function sendInitialCrawlerStatus(videoId: string, res: Response) {
+    try {
+        // Lấy các sự kiện gần đây từ stream
+        const lastEvents: any = await redis.xrevrange(REDIS_KEYS.STREAM_CRAWLER, "+", "-", "COUNT", 100);
+
+        if (lastEvents && lastEvents.length > 0) {
+            // Tìm sự kiện cuối cùng khớp với videoId
+            for (const event of lastEvents) {
+                const dataStr = event[1][1];
+                const data = JSON.parse(dataStr);
+                if (data.videoId === videoId) {
+                    sendSSE(res, "crawler_status", data);
+                    break;
+                }
+            }
+        }
+    } catch (error) {
+        console.error(`Lỗi khi gửi trạng thái crawler ban đầu cho video ${videoId}:`, error);
+    }
+}
+
+/**
  * Lắng nghe các thay đổi từ MongoDB Change Streams cho SSE.
  */
 export const initSSERealtimeListener = () => {
@@ -261,27 +279,46 @@ export const initSSERealtimeListener = () => {
         await sendCurrentLeaderboard(video_id);
     });
 
-    // 4. Lắng nghe Redis channel 'channel:crawler' để phát trạng thái crawler
-    redisSub.subscribe("channel:crawler", (err) => {
-        if (err) {
-            console.error("Lỗi khi subscribe Redis channel:crawler:", err);
-        }
-    });
-
-    redisSub.on("message", (channel, message) => {
-        if (channel === "channel:crawler") {
-            try {
-                const data = JSON.parse(message);
-                if (data.videoId) {
-                    // Broadcast crawler status using videoId to match frontend SSE connection
-                    broadcastSSE(data.videoId, "crawler_status", data);
-                }
-            } catch (error) {
-                console.error("Lỗi xử lý tin nhắn channel:crawler:", error);
-            }
-        }
-    });
+    // 4. Lắng nghe Redis Stream 'stream:crawler' để phát trạng thái crawler
+    listenToCrawlerStream();
 };
+
+/**
+ * Lắng nghe Redis Stream và broadcast tới các client SSE.
+ */
+async function listenToCrawlerStream() {
+    let lastId = "$"; // Bắt đầu lắng nghe từ những tin nhắn mới nhất sau khi khởi động
+
+    // Kiểm tra xem stream có tồn tại không và lấy ID cuối cùng nếu cần
+    // Ở đây dùng "$" là đủ để nhận các tin nhắn mới.
+
+    while (true) {
+        try {
+            // Đọc từ stream, block tối đa 5 giây nếu không có tin nhắn mới
+            const results = await redis.xread("BLOCK", 5000, "STREAMS", REDIS_KEYS.STREAM_CRAWLER, lastId);
+
+            if (results) {
+                const [streamName, messages] = results[0];
+                for (const message of messages) {
+                    const [id, [field, dataStr]] = message;
+                    lastId = id;
+
+                    try {
+                        const data = JSON.parse(dataStr);
+                        if (data.videoId) {
+                            broadcastSSE(data.videoId, "crawler_status", data);
+                        }
+                    } catch (err) {
+                        console.error("Lỗi parse dữ liệu từ Redis Stream:", err);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Lỗi khi đọc từ Redis Stream:", error);
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Đợi trước khi thử lại
+        }
+    }
+}
 /**
  * Gửi toàn bộ comment trong buffer và xóa buffer.
  */

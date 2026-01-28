@@ -7,7 +7,7 @@ import {
 import { sendToKafka } from "./kafka-producer";
 import { KAFKA_TOPIC, YOUTUBE_API_KEY } from "../utils/config";
 import { sleep } from "../utils/sleep";
-import { saveStateActiveCrawlers, setStatusActiveCrawlers, getStatusActiveCrawlers, getStateActiveCrawlers, delLockActiveCrawlers, redis } from "./redis-service";
+import { saveStateActiveCrawlers, setStatusActiveCrawlers, getStatusActiveCrawlers, getStateActiveCrawlers, delLockActiveCrawlers, redis, REDIS_KEYS } from "./redis-service";
 import { StatusCrawler } from "./redis-service";
 import { AppError } from "../error/AppError";
 const youtube = google.youtube({
@@ -69,11 +69,11 @@ export async function fetchChatMessages(
 export async function crawlLiveChat(liveChatId: string, videoId: string) {
   let nextPageToken: string | undefined = await getStateActiveCrawlers(liveChatId) || undefined;
   await setStatusActiveCrawlers(liveChatId, StatusCrawler.RUNNING);
-  redis.publish("channel:crawler", JSON.stringify({
+  await redis.xadd(REDIS_KEYS.STREAM_CRAWLER, "MAXLEN", "~", 1000, "*", "data", JSON.stringify({
     type: StatusCrawler.RUNNING,
     liveChatId,
     videoId,
-  }))
+  }));
 
   console.log(`▶ Start crawling liveChatId=${liveChatId} videoId=${videoId}`);
 
@@ -99,19 +99,19 @@ export async function crawlLiveChat(liveChatId: string, videoId: string) {
       if (err?.errors?.[0]?.reason === "liveChatEnded") {
         console.log("🛑 Live chat ended, stop crawler");
         await setStatusActiveCrawlers(liveChatId, StatusCrawler.ENDED);
-        redis.publish("channel:crawler", JSON.stringify({
+        await redis.xadd(REDIS_KEYS.STREAM_CRAWLER, "MAXLEN", "~", 1000, "*", "data", JSON.stringify({
           type: StatusCrawler.ENDED,
           liveChatId,
           videoId,
-        }))
+        }));
       }
       console.error("❌ Crawl Error:", err);
       await setStatusActiveCrawlers(liveChatId, StatusCrawler.ERROR);
-      redis.publish("channel:crawler", JSON.stringify({
+      await redis.xadd(REDIS_KEYS.STREAM_CRAWLER, "MAXLEN", "~", 1000, "*", "data", JSON.stringify({
         type: StatusCrawler.ERROR,
         liveChatId,
         videoId,
-      }))
+      }));
       await delLockActiveCrawlers(liveChatId)
       await sleep(5000); // backoff
     }
@@ -133,10 +133,10 @@ export async function stopCrawlerService(liveChatId: string, videoId: string, ac
 
   await setStatusActiveCrawlers(liveChatId, StatusCrawler.STOPPED);
   await delLockActiveCrawlers(liveChatId)
-  redis.publish("channel:crawler", JSON.stringify({
+  await redis.xadd(REDIS_KEYS.STREAM_CRAWLER, "MAXLEN", "~", 1000, "*", "data", JSON.stringify({
     type: StatusCrawler.STOPPED,
     liveChatId,
     videoId,
-  }))
+  }));
   return `Crawler for liveChat ${liveChatId} has been stopped.`;
 }

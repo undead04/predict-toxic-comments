@@ -146,6 +146,7 @@ export const useLiveStream = (url: string, isTracking: boolean) => {
 
         // Metrics ban đầu
         eventSource.addEventListener('initial_metrics', (event: any) => {
+            console.log("initial_metrics", event.data);
             const data: any[] = JSON.parse(event.data);
             const formatted: MetricData[] = data.map((m: any) => ({
                 video_id: m.video_id,
@@ -173,7 +174,7 @@ export const useLiveStream = (url: string, isTracking: boolean) => {
         // Trạng thái crawler
         eventSource.addEventListener('crawler_status', (event: any) => {
             const data: { type: string } = JSON.parse(event.data);
-            console.log('Crawler status update:', data.type);
+            console.log("crawler_status", data.type);
             dispatch({ type: 'SET_CRAWLER_STATUS', payload: data.type });
             if (data.type === 'stopped') {
                 eventSource.close();
@@ -188,7 +189,7 @@ export const useLiveStream = (url: string, isTracking: boolean) => {
             console.log('Closing SSE connection');
             eventSource.close();
         };
-    }, [isTracking, videoId]);
+    }, [isTracking, url]);
 
     return {
         ...state,

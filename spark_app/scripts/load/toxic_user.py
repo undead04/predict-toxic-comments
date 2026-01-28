@@ -13,9 +13,9 @@ def get_batch_user_toxic(batch_df: pd.DataFrame):
     """Aggregates user metrics for a static batch."""
     logger.info("Aggregating user metrics for a static batch.")
     return (
-        batch_df.withWatermark("published_at", "3 minutes")
+        batch_df.withWatermark("kafka_timestamp", "3 minutes")
         .groupBy(
-            F.window(F.col("published_at"), "1 minutes"),
+            F.window(F.col("kafka_timestamp"), "1 minutes"),
             F.col("video_id"),
             F.col("author_id"),
         )
@@ -25,7 +25,7 @@ def get_batch_user_toxic(batch_df: pd.DataFrame):
             F.max("author_image").alias("author_image"),
             F.count("comment_id").alias("total_comments"),
             F.sum((F.col("toxic_score") >= 0.7).cast("long")).alias("toxic_count"),
-            F.max(F.when(F.col("toxic_score") >= 0.7, F.col("published_at"))).alias(
+            F.max(F.when(F.col("toxic_score") >= 0.7, F.col("kafka_timestamp"))).alias(
                 "last_violation_time"
             ),
         )

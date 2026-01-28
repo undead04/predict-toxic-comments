@@ -16,7 +16,6 @@ export default function Home() {
 
   // Custom Hook to manage all Live logic (Socket, Metrics, Messages, Leaderboard)
   const { messages, leaderboard, metrics, crawlerStatus } = useLiveStream(url, isTracking);
-  console.log(crawlerStatus);
   const handleStart = async () => {
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       setIsLoading(true);
@@ -32,7 +31,6 @@ export default function Home() {
       alert('Please enter a valid YouTube Live URL');
     }
   };
-
   const handleStop = async () => {
     setIsLoading(true);
     try {
@@ -45,7 +43,6 @@ export default function Home() {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="relative min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors duration-500 overflow-x-hidden">
       {/* Background patterns */}

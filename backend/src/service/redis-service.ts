@@ -39,6 +39,7 @@ export const REDIS_KEYS = {
   LOCK: (id: string) => `yt:live:${id}:lock`,
   LEADERBOARD: (videoId: string) => `leaderboard:scores:${videoId}`,
   USER_INFO: (authorId: string) => `user:info:${authorId}`,
+  STREAM_CRAWLER: "stream:crawler",
 };
 
 export async function initRedis() {
