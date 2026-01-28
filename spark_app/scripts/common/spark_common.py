@@ -45,6 +45,4 @@ def spark_session() -> SparkSession:
         .config("spark.sql.adaptive.enabled", "false")
         .getOrCreate()
     )
-    sc = spark.sparkContext
-    sc.addPyFile(f"s3a://{BUCKET}/{MODEL_PATH}")
     return spark

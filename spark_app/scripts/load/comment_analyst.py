@@ -5,22 +5,20 @@ logger = get_logger("LoadCommentAnalyst")
 
 
 def write_to_mongo_comment(batch_df, batch_id):
-    logger.info(f"Writing Comment batch {batch_id} to MongoDB...")
-    (
-        batch_df
-          .write
-          .format("mongodb")
-          .mode("append")
-          # Lưu ý: Bỏ tiền tố 'spark.mongodb.' khi dùng trong .option() của DataFrameWriter
-          .option("database", DATABASE_NAME)
-          .option("collection", "live_comment_analysis")
-          
-          # 1. Kích hoạt chế độ ghi đè nếu trùng
-          .option("operationType", "REPLACE") 
-          
-          # 2. Cực kỳ quan trọng: Chỉ định trường dùng để kiểm tra trùng lặp
-          # Connector sẽ dựa vào 'comment_id' để thực hiện lệnh update thay vì insert mới
-          .option("idFieldList", "comment_id") 
-          
-          .save()
-    )
+  logger.info(f"Writing Comment batch {batch_id} to MongoDB...")
+  (
+      batch_df
+      .write
+      .format("mongodb")
+      .mode("append")
+      .option("database", DATABASE_NAME)
+      .option("collection", "live_comment_analysis")
+        
+      # 1. Chuyển sang lowercase để tránh Spark CaseInsensitiveStringMap cảnh báo
+      .option("operation.type", "replace") 
+        
+      # 2. Sử dụng dấu chấm để phân cấp cấu hình đúng chuẩn mới
+      .option("id.field.list", "comment_id") 
+        
+      .save()
+  )

@@ -138,91 +138,93 @@ export default function Home() {
           </motion.div>
         ) : (
           /* DASHBOARD LAYOUT */
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="relative flex flex-col min-h-screen"
-          >
-            {/* Top Navigation Bar */}
-            <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white/80 dark:bg-[#0f0f0f]/80 backdrop-blur-md dark:border-gray-800">
-              <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-6 gap-4">
-                <div className="flex items-center gap-4 flex-shrink-0">
-                  <div className="bg-[#FF0000] p-1.5 rounded-lg active:scale-95 transition-transform cursor-pointer">
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z" />
-                    </svg>
+          crawlerStatus !== null && (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative flex flex-col min-h-screen"
+            >
+              {/* Top Navigation Bar */}
+              <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white/80 dark:bg-[#0f0f0f]/80 backdrop-blur-md dark:border-gray-800">
+                <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-6 gap-4">
+                  <div className="flex items-center gap-4 flex-shrink-0">
+                    <div className="bg-[#FF0000] p-1.5 rounded-lg active:scale-95 transition-transform cursor-pointer">
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z" />
+                      </svg>
+                    </div>
+                    <h2 className="hidden text-base font-black tracking-tight dark:text-white lg:block uppercase">Stream Guard</h2>
                   </div>
-                  <h2 className="hidden text-base font-black tracking-tight dark:text-white lg:block uppercase">Stream Guard</h2>
-                </div>
 
-                <motion.div
-                  layoutId="crawl-input-container"
-                  transition={{ type: "spring", stiffness: 200, damping: 25 }}
-                  className="flex-grow max-w-xl text-center"
-                >
-                  <CrawlControl
-                    url={url}
-                    setUrl={setUrl}
-                    isTracking={isTracking}
-                    isLoading={isLoading}
-                    onStart={handleStart}
-                    onStop={handleStop}
-                    variant="topbar"
-                  />
-                </motion.div>
+                  <motion.div
+                    layoutId="crawl-input-container"
+                    transition={{ type: "spring", stiffness: 200, damping: 25 }}
+                    className="flex-grow max-w-xl text-center"
+                  >
+                    <CrawlControl
+                      url={url}
+                      setUrl={setUrl}
+                      isTracking={isTracking}
+                      isLoading={isLoading}
+                      onStart={handleStart}
+                      onStop={handleStop}
+                      variant="topbar"
+                    />
+                  </motion.div>
 
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className={`flex h-9 items-center gap-2 rounded-full border px-4 text-[10px] font-black uppercase transition-colors ${crawlerStatus === 'running'
-                    ? 'border-green-100 bg-green-50 text-green-600 dark:border-green-900/30 dark:bg-green-900/20'
-                    : crawlerStatus === 'stopped' || crawlerStatus === 'ended'
-                      ? 'border-orange-100 bg-orange-50 text-orange-600 dark:border-orange-900/30 dark:bg-orange-900/20'
-                      : 'border-red-100 bg-red-50 text-red-600 dark:border-red-900/30 dark:bg-red-900/20'
-                    }`}>
-                    <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${crawlerStatus === 'running' ? 'bg-green-600' : 'bg-red-600'
-                      }`}></div>
-                    {crawlerStatus || 'TRACKING'}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className={`flex h-9 items-center gap-2 rounded-full border px-4 text-[10px] font-black uppercase transition-colors ${crawlerStatus === 'running'
+                      ? 'border-green-100 bg-green-50 text-green-600 dark:border-green-900/30 dark:bg-green-900/20'
+                      : crawlerStatus === 'stopped' || crawlerStatus === 'ended'
+                        ? 'border-orange-100 bg-orange-50 text-orange-600 dark:border-orange-900/30 dark:bg-orange-900/20'
+                        : 'border-red-100 bg-red-50 text-red-600 dark:border-red-900/30 dark:bg-red-900/20'
+                      }`}>
+                      <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${crawlerStatus === 'running' ? 'bg-green-600' : 'bg-red-600'
+                        }`}></div>
+                      {crawlerStatus || 'TRACKING'}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </header>
+              </header>
 
-            {/* Main Content Area */}
-            <main className="flex-grow p-6">
-              <div className="mx-auto max-w-[1600px] space-y-6">
-                {/* Top Row: Chart & Leaderboard */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              {/* Main Content Area */}
+              <main className="flex-grow p-6">
+                <div className="mx-auto max-w-[1600px] space-y-6">
+                  {/* Top Row: Chart & Leaderboard */}
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <motion.div
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="lg:col-span-2 min-h-[300px]"
+                    >
+                      <ToxicityChart data={metrics} />
+                    </motion.div>
+                    <motion.div
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="min-h-[300px]"
+                    >
+                      <ToxicLeaderboard data={leaderboard} />
+                    </motion.div>
+                  </div>
+
+                  {/* Bottom Row: Message List */}
                   <motion.div
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.1 }}
-                    className="lg:col-span-2 min-h-[300px]"
+                    transition={{ delay: 0.3 }}
+                    className="min-h-[400px]"
                   >
-                    <ToxicityChart data={metrics} />
-                  </motion.div>
-                  <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="min-h-[300px]"
-                  >
-                    <ToxicLeaderboard data={leaderboard} />
+                    <MessageList messages={messages} totalMessages={messages.length} />
                   </motion.div>
                 </div>
-
-                {/* Bottom Row: Message List */}
-                <motion.div
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="min-h-[400px]"
-                >
-                  <MessageList messages={messages} totalMessages={messages.length} />
-                </motion.div>
-              </div>
-            </main>
-          </motion.div>
+              </main>
+            </motion.div>
+          )
         )}
       </AnimatePresence>
 

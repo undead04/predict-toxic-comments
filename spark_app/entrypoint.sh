@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 # Hàm kiểm tra dịch vụ
 wait_for_service() {
   host=$1
@@ -14,7 +14,6 @@ wait_for_service() {
   echo "$name is UP!"
 }
 
-# Đợi Kafka
 wait_for_service "kafka-1" 29092 "Kafka"
 
 zip -r app_code.zip . -i "scripts/*" "utils/*"

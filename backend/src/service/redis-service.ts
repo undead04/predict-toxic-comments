@@ -2,7 +2,7 @@ import Redis from "ioredis";
 
 import { REDIS_HOST, REDIS_PASSWORD, REDIS_PORT } from "../utils/config";
 
-export const redis = new Redis({
+const commonConfig = {
   host: REDIS_HOST,
   port: REDIS_PORT,
   password: REDIS_PASSWORD,
@@ -11,10 +11,19 @@ export const redis = new Redis({
   keepAlive: 1000,
   connectTimeout: 10000,
   maxRetriesPerRequest: null,
-  retryStrategy: (times) => {
+  retryStrategy: (times: any) => {
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
+};
+
+// Client dùng cho API, Cache, Leaderboard
+export const redis = new Redis(commonConfig);
+
+// Client dùng riêng cho listenToCrawlerStream (để không block API)
+export const redisStream = new Redis({
+  ...commonConfig,
+  maxRetriesPerRequest: null, // Bắt buộc cho blocking operations
 });
 
 export enum StatusCrawler {

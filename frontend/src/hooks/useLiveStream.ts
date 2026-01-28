@@ -187,6 +187,7 @@ export const useLiveStream = (url: string, isTracking: boolean) => {
 
         return () => {
             console.log('Closing SSE connection');
+
             eventSource.close();
         };
     }, [isTracking, url]);

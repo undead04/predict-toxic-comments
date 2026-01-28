@@ -26,9 +26,12 @@ if __name__ == "__main__":
 
     # SINGLE STREAM QUERY ORCHESTRATOR
     query = (
-        df_transform.writeStream.foreachBatch(write_multiple_sink)
+        df_transform
+        .writeStream
+        .foreachBatch(write_multiple_sink)
         .option("checkpointLocation", checkpoint_path)
         .trigger(processingTime="10 seconds")
+        .outputMode("append")
         .start()
     )
 

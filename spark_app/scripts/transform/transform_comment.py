@@ -57,11 +57,8 @@ def get_model_resources():
             model = ToxicClassifier()
 
             try:
-                model = torch.quantization.quantize_dynamic(
-                    model, {torch.nn.Linear}, dtype=torch.qint8
-                )
                 # Load model weights from S3
-                local_path = SparkFiles.get("visobert_toxic.pt")
+                local_path = "/opt/model/visobert_toxic.pt"
                 model.load_state_dict(torch.load(local_path, map_location=_device))
 
             except Exception as e:
@@ -146,7 +143,7 @@ def predict_udf(messages: pd.Series) -> pd.DataFrame:
         logits = outputs.logits if hasattr(outputs, "logits") else outputs
         probs = torch.sigmoid(logits).cpu().numpy()
 
-    return pd.DataFrame(probs, columns=_TARGET_NAMES)
+    return pd.DataFrame(probs, columns=_TARGET_NAMES).round(3).astype(float)
 
 
 def transform_comment(final_raw_df: DataFrame) -> DataFrame:

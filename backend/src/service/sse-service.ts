@@ -1,13 +1,11 @@
 import { Response } from "express";
-import { redis, REDIS_KEYS, REDIS_TTL } from "./redis-service";
+import { redis, redisStream, REDIS_KEYS, REDIS_TTL } from "./redis-service";
 import { getCommentsByVideoId } from "./comment-analysis-service";
 import { getMetricsByVideoId } from "./stream-metric-service";
 import { CommentModel } from "../model/LiveCommentAnalysis";
 import { MetricModel } from "../model/LiveStreamMetric";
 import { ToxicUserModel } from "../model/ToxicUserMetric";
 import { UserInfo, getToxicUserAggregates } from "./toxic-user-service";
-import Redis from "ioredis";
-import { REDIS_HOST, REDIS_PASSWORD, REDIS_PORT } from "../utils/config";
 
 /**
  * Quản lý các kết nối SSE.
@@ -125,12 +123,12 @@ async function sendCurrentLeaderboard(videoId: string, specificRes?: Response) {
                 }
                 pipeline.expire(leaderboardKey, REDIS_TTL.LEADERBOARD);
                 await pipeline.exec();
+
             }
         }
 
         // Lấy Top 5 user có toxic_count cao nhất
         const topUsersIds = await redis.zrevrange(leaderboardKey, 0, 4, "WITHSCORES");
-
         const leaderboard: UserInfo[] = [];
         if (topUsersIds && topUsersIds.length > 0) {
             for (let i = 0; i < topUsersIds.length; i += 2) {
@@ -169,7 +167,7 @@ async function sendCurrentLeaderboard(videoId: string, specificRes?: Response) {
 async function sendInitialCrawlerStatus(videoId: string, res: Response) {
     try {
         // Lấy các sự kiện gần đây từ stream
-        const lastEvents: any = await redis.xrevrange(REDIS_KEYS.STREAM_CRAWLER, "+", "-", "COUNT", 100);
+        const lastEvents: any = await redisStream.xrevrange(REDIS_KEYS.STREAM_CRAWLER, "+", "-", "COUNT", 100);
 
         if (lastEvents && lastEvents.length > 0) {
             // Tìm sự kiện cuối cùng khớp với videoId
@@ -236,7 +234,7 @@ export const initSSERealtimeListener = () => {
         { $project: { "fullDocument.video_id": 1, "fullDocument.window_start": 1, "fullDocument.total_comments": 1, "fullDocument.toxic_count": 1, "fullDocument.unique_viewers": 1 } }
     ];
     // 2. Lắng nghe collection 'metrics'
-    MetricModel.watch(pipelineMetric).on("change", (change: any) => {
+    MetricModel.watch(pipelineMetric, { fullDocument: "updateLookup" }).on("change", (change: any) => {
         const updatedMetric = change.fullDocument
         if (updatedMetric && updatedMetric.video_id) {
             broadcastSSE(updatedMetric.video_id, "metric_update", updatedMetric);
@@ -248,45 +246,33 @@ export const initSSERealtimeListener = () => {
         { $match: { operationType: { $in: ["insert", "update", "replace"] } } },
         { $project: { "fullDocument.video_id": 1, "fullDocument.author_id": 1, "fullDocument.author_name": 1, "fullDocument.author_image": 1, "fullDocument.toxic_count": 1 } }
     ];
-    ToxicUserModel.watch(pipelineToxicUser).on("change", async (change: any) => {
+    ToxicUserModel.watch(pipelineToxicUser, { fullDocument: "updateLookup" }).on("change", async (change: any) => {
         const doc = change.fullDocument;
         if (!doc || !doc.video_id || !doc.author_id) return;
 
         const { video_id, author_id, author_name, author_image, toxic_count } = doc;
         const leaderboardKey = REDIS_KEYS.LEADERBOARD(video_id);
         const userInfoKey = REDIS_KEYS.USER_INFO(author_id);
-
-        // --- Kiểm tra và Khôi phục nếu Redis mất dữ liệu ---
-        const exists = await redis.exists(leaderboardKey);
-        if (!exists) {
-            // Nếu không tồn tại, hàm này sẽ kéo toàn bộ từ Mongo về Redis
-            await sendCurrentLeaderboard(video_id);
-            return;
-        }
-
+        const pipeline = redis.pipeline();
         // --- Cập nhật dữ liệu mới nhất vào Redis ---
-        await redis.hset(userInfoKey, {
+        pipeline.hset(userInfoKey, {
             name: author_name,
             avatar: author_image
         });
-        await redis.zadd(leaderboardKey, toxic_count, author_id);
-
-        // Cập nhật TTL cho video leaderboard và user info
-        await redis.expire(leaderboardKey, REDIS_TTL.LEADERBOARD);
-        await redis.expire(userInfoKey, REDIS_TTL.USER_INFO);
-
+        pipeline.expire(userInfoKey, REDIS_TTL.USER_INFO);
+        pipeline.zincrby(leaderboardKey, toxic_count, author_id);
+        pipeline.expire(leaderboardKey, REDIS_TTL.LEADERBOARD);
+        await pipeline.exec();
         // Phát cập nhật leaderboard mới nhất cho tất cả client
         await sendCurrentLeaderboard(video_id);
     });
 
-    // 4. Lắng nghe Redis Stream 'stream:crawler' để phát trạng thái crawler
-    listenToCrawlerStream();
 };
 
 /**
  * Lắng nghe Redis Stream và broadcast tới các client SSE.
  */
-async function listenToCrawlerStream() {
+export async function listenToCrawlerStream() {
     let lastId = "$"; // Bắt đầu lắng nghe từ những tin nhắn mới nhất sau khi khởi động
 
     // Kiểm tra xem stream có tồn tại không và lấy ID cuối cùng nếu cần
@@ -295,23 +281,24 @@ async function listenToCrawlerStream() {
     while (true) {
         try {
             // Đọc từ stream, block tối đa 5 giây nếu không có tin nhắn mới
-            const results = await redis.xread("BLOCK", 5000, "STREAMS", REDIS_KEYS.STREAM_CRAWLER, lastId);
+            const results = await redisStream.xread("BLOCK", 5000, "STREAMS", REDIS_KEYS.STREAM_CRAWLER, lastId);
 
             if (results) {
                 const [streamName, messages] = results[0];
-                for (const message of messages) {
+                // Xử lý song song các message trong 1 batch để tăng tốc
+                await Promise.all(messages.map(async (message) => {
                     const [id, [field, dataStr]] = message;
-                    lastId = id;
+                    lastId = id; // Cập nhật ID để lần sau đọc tiếp từ đây
 
                     try {
                         const data = JSON.parse(dataStr);
                         if (data.videoId) {
                             broadcastSSE(data.videoId, "crawler_status", data);
                         }
-                    } catch (err) {
-                        console.error("Lỗi parse dữ liệu từ Redis Stream:", err);
+                    } catch (parseErr) {
+                        console.error("JSON Parse Error:", parseErr);
                     }
-                }
+                }));
             }
         } catch (error) {
             console.error("Lỗi khi đọc từ Redis Stream:", error);
