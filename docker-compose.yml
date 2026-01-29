@@ -77,12 +77,27 @@ services:
       # Tạo topic
       /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --create --if-not-exists --topic comment --partitions 1 --replication-factor 1
       "
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/opt/kafka/bin/kafka-topics.sh",
+          "--bootstrap-server",
+          "kafka-1:29092",
+          "--describe",
+          "--topic",
+          "comment",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   model-api:
     build: ./spark_app
     container_name: toxic-model-api
     depends_on:
-      - init-kafka
+      init-kafka:
+        condition: service_healthy
     environment:
       - SPARK_MASTER=local[2]
       - KAFKA_BOOTSTRAP_SERVERS=kafka-1:29092
