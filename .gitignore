@@ -10,4 +10,4 @@ backend/node_modules
 /frontend/node_modules/
 .env
 **/__pycache__/
-model/*
+model/visobert_toxic.pt
