@@ -147,24 +147,20 @@ def predict_udf(messages: pd.Series) -> pd.DataFrame:
 
 
 def transform_comment(final_raw_df: DataFrame) -> DataFrame:
-    url_pattern = r"https?://\S+|www\.\S+"
-    email_pattern = r"\S+@\S+"
+    garbage_pattern = r"(https?://\S+|www\.\S+|\S+@\S+)"
 
     df_comment_cleaned = (
         final_raw_df.dropna(subset=["message"])
         .withColumn("published_at", col("published_at").cast("timestamp"))
+        # Giả sử bạn bắt buộc phải dùng UDF ở đây
         .withColumn("message_clean", unicode_normalize_udf(col("message")))
         .withColumn(
             "message_clean",
             trim(
                 regexp_replace(
-                    regexp_replace(
-                        regexp_replace(lower(col("message_clean")), url_pattern, ""),
-                        email_pattern,
-                        "",
-                    ),
+                    regexp_replace(lower(col("message_clean")), garbage_pattern, ""),
                     r"\s+",
-                    " ",
+                    " ",  # Nén nhiều space thành 1 space
                 )
             ),
         )
