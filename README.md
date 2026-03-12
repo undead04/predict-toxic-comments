@@ -53,6 +53,14 @@ graph TD
 > [!NOTE]
 > **Điểm chính:** Spark chịu trách nhiệm xử lý nặng và lưu trữ vào MongoDB. Backend sẽ nhận diện các thay đổi từ MongoDB để cập nhật Redis (dùng cho Leaderboard và cache) trước khi đẩy lên Frontend.
 
+## Database(ERD)
+<img width="1548" height="642" alt="image" src="https://github.com/user-attachments/assets/e46352ae-36af-4f8c-b08f-edb948155337" />
+- processed_batches: Bảng dùng để quản lí batches
+- toxic_user_metric: Bảng dùng để lưu số liểu người dùng trong 1 phút comment toxic bao nhiêu lần
+- live_comment_analysis: đây là bảng lưu dữ liệu score comment 
+- live_stream_metric: Bàng dùng để lưu số liệu thống kê số lượng comment toxic,số lượng bao nhiêu người comment trong 1 phút
+
+
 ## 5. 📂 Cấu trúc Dự án
 *   `/backend`: API server, YouTube crawler, Socket.io. Xem chi tiết tại [/backend/README.md](./backend/README.md).
 *   `/frontend`: Giao diện người dùng Next.js. Xem chi tiết tại [/frontend/README.md](./frontend/README.md).
@@ -153,5 +161,6 @@ Giao diện trực quan để xem kết quả.
 
 ## 🤝 Đóng góp
 Dự án này phục vụ mục đích học tập và nghiên cứu về Data Engineering và Real-time Processing.
+
 
 
