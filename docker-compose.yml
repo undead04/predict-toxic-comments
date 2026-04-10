@@ -98,6 +98,28 @@ services:
       resources:
         limits:
           memory: 5G
+  # =========================
+  # 2. REDIS
+  # =========================
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - comment-toxic
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 networks:
   comment-toxic:
@@ -108,3 +130,4 @@ volumes:
   kafka-1-data:
   kafka-2-data:
   kafka-3-data:
+  redis-data:

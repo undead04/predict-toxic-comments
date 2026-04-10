@@ -6,7 +6,6 @@ def spark_session() -> SparkSession:
     spark = (
         SparkSession.builder
         .appName("KafkaStreaming")
-
         # =========================
         # RESOURCE (OK để trong code)
         # =========================
@@ -20,7 +19,6 @@ def spark_session() -> SparkSession:
         .config("spark.default.parallelism", "2")
         .config("spark.sql.execution.arrow.pyspark.enabled", "true")
         .config("spark.python.worker.reuse", "true")
-
         # =========================
         # S3
         # =========================
