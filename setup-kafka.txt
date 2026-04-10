@@ -1,0 +1,4 @@
+Lệnh tạo topic
+/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --create --if-not-exists --topic comment --partitions 3 --replication-factor 3
+Lệnh xem danh sách topic
+/opt/kafka/bin/kafka-topics.sh --list --bootstrap-server kafka-1:29092

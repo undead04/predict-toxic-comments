@@ -4,7 +4,7 @@ import { KafkaPayload } from "../types/YoutubeComment";
 
 const kafka = new Kafka({
   clientId: KAFKA_CLIENT_ID,
-  brokers: [KAFKA_BOOTSTRAP_SERVER], // Đảm bảo port này khớp với EXTERNAL trong Docker
+  brokers: KAFKA_BOOTSTRAP_SERVER.split(","), // Đảm bảo port này khớp với EXTERNAL trong Docker
   retry: {
     initialRetryTime: 300,
     retries: 10,
