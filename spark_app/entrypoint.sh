@@ -14,11 +14,10 @@ wait_for_service() {
   echo "$name is UP!"
 }
 
-wait_for_service "kafka-1" 29092 "Kafka-1"
-wait_for_service "kafka-2" 29092 "Kafka-2"
-wait_for_service "kafka-3" 29092 "Kafka-3"
+wait_for_service "kafka-1" 9092 "Kafka-1"
+wait_for_service "kafka-2" 9094 "Kafka-2"
+wait_for_service "kafka-3" 9096 "Kafka-3"
 
-zip -r app_code.zip . -i "scripts/*" "utils/*"
 # Thực hiện submit job
 echo "Submitting Spark Job..."
 exec spark-submit \

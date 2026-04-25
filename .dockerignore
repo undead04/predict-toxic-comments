@@ -1,0 +1,27 @@
+# Python
+
+**pycache**/
+_.py[cod]
+_$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+
+.env
+
+# IDEs
+
+.vscode/
+.idea/
+
+# Jupyter Notebooks
+
+.ipynb_checkpoints
+
+# Docker
+
+Dockerfile
+.dockerignore
