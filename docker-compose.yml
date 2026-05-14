@@ -81,6 +81,7 @@ services:
   model-api:
     build: ./spark_app
     container_name: toxic-model-api
+    restart: unless-stopped
     environment:
       - SPARK_MASTER=local[2]
       - KAFKA_BOOTSTRAP_SERVERS=kafka-1:29092,kafka-2:29092,kafka-3:29092

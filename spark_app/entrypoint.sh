@@ -20,7 +20,7 @@ wait_for_service "kafka-3" 9096 "Kafka-3"
 
 # Thực hiện submit job
 echo "Submitting Spark Job..."
-exec spark-submit \
+exec /opt/spark/bin/spark-submit\
     --master local[2] \
     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.apache.hadoop:hadoop-aws:3.3.4,org.mongodb.spark:mongo-spark-connector_2.12:10.3.0,com.redislabs:spark-redis_2.12:3.1.0 \
     --conf spark.executorEnv.PYTHONPATH=/opt/spark_app \

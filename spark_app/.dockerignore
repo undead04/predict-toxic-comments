@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Models and checkpoints (avoid copying huge models if tested locally)
+models/
+checkpoint/
+checkpoints/
+
+# Spark temp
+spark-warehouse/
+metastore_db/

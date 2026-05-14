@@ -1,12 +1,9 @@
-dotenv
-pyspark == 3.5.7
+python-dotenv
 pandas
 pyarrow
 # Bản torch rút gọn chỉ chạy CPU
 torch --index-url https://download.pytorch.org/whl/cpu
 transformers
-protobuf
-sentencepiece
 pymongo
 boto3
 tenacity

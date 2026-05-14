@@ -11,7 +11,10 @@ AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION")
 
 
 URL_MONGO = os.getenv("URL_MONGO")
-BOOTSTRAP_SERVERS = os.getenv("BOOTSTRAP_SERVERS", "localhost:9094")
+BOOTSTRAP_SERVERS = os.getenv(
+    "KAFKA_BOOTSTRAP_SERVERS",
+    os.getenv("BOOTSTRAP_SERVERS", "kafka-1:29092,kafka-2:29092,kafka-3:29092"),
+)
 DATABASE_NAME = os.getenv("DATABASE_NAME")
 MODEL_PATH = os.getenv("MODEL_PATH")
 CACHE_DIR = os.getenv("MODEL_CACHE_DIR", "/tmp/models")
